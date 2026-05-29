@@ -23,12 +23,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-val FondoOscuro = Color(0xFF0D0D0D)
-val Morado = Color(0xFF7B2FF7)
-val MoradoClaro = Color(0xFFA855F7)
-val Rojo = Color(0xFFE53935)
-val Superficie = Color(0xFF1A1A2E)
+// ============================================================
+// COLORES GLOBALES DE LA APP
+// ============================================================
+val FondoOscuro = Color(0xFF0D0D0D)   // Fondo principal negro
+val Morado = Color(0xFF7B2FF7)         // Morado neón
+val MoradoClaro = Color(0xFFA855F7)    // Morado degradado
+val Rojo = Color(0xFFE53935)           // Rojo de alerta (sin hilo)
+val Superficie = Color(0xFF1A1A2E)     // Color de las cards
 
+// ============================================================
+// MODELO DE DATOS
+// Representa una noticia con autor, contenido, likes, etc.
+// ============================================================
 data class Noticia(
     val autor: String,
     val handle: String,
@@ -39,6 +46,10 @@ data class Noticia(
     val avatarColor: Color
 )
 
+// ============================================================
+// LISTA DE NOTICIAS SIMULADAS
+// Estos datos simulan lo que vendría de una API o base de datos
+// ============================================================
 val noticias = listOf(
     Noticia("Breaking News", "@breaking", "🏆 Nuevo récord mundial de atletismo en los 100m. El atleta jamaicano rompe la barrera histórica.", "hace 2 min", "12.4K", "3.2K", Color(0xFFE53935)),
     Noticia("Tech Today", "@techtoday", "🤖 OpenAI lanza su nuevo modelo GPT-5. Los expertos quedan impresionados por sus capacidades.", "hace 5 min", "45.1K", "8.7K", Color(0xFF1565C0)),
@@ -47,31 +58,46 @@ val noticias = listOf(
     Noticia("Entertainment", "@entertain", "🎬 La película más esperada del año rompe récords en su primer fin de semana de estreno.", "hace 15 min", "67.2K", "14.8K", Color(0xFF6A1B9A))
 )
 
+// ============================================================
+// ACTIVITY PRINCIPAL
+// Punto de entrada de la app → lanza SinHiloScreen()
+// ============================================================
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                SinHiloScreen()
+                SinHiloScreen() // Navega directamente a la pantalla principal
             }
         }
     }
 }
 
+// ============================================================
+// PANTALLA PRINCIPAL — SIN HILO
+// ❌ El proceso de carga se ejecuta en el HILO PRINCIPAL
+// ❌ Esto congela la UI durante 3 segundos
+// ❌ El usuario no puede interactuar con nada mientras carga
+// ============================================================
 @Composable
 fun SinHiloScreen() {
+    // Estado de las noticias cargadas (inicia vacío)
     var noticiasCargadas by remember { mutableStateOf<List<Noticia>>(emptyList()) }
+    // Estado de la pantalla: idle → cargando → listo
     var estado by remember { mutableStateOf("idle") }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(FondoOscuro)
-            .statusBarsPadding() // ✅ corrige el posicionamiento
+            .statusBarsPadding() // Respeta la barra de estado del teléfono
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
 
-            // TopBar
+            // --------------------------------------------------
+            // TOPBAR — Encabezado con gradiente rojo
+            // Indica visualmente que esta es la versión SIN HILO
+            // --------------------------------------------------
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -109,7 +135,10 @@ fun SinHiloScreen() {
                 }
             }
 
-            // Banner cargando
+            // --------------------------------------------------
+            // BANNER DE ESTADO — Solo visible mientras carga
+            // Muestra que la app está congelada
+            // --------------------------------------------------
             AnimatedVisibility(visible = estado == "cargando") {
                 Box(
                     modifier = Modifier
@@ -127,7 +156,10 @@ fun SinHiloScreen() {
                 }
             }
 
-            // Banner listo
+            // --------------------------------------------------
+            // BANNER DE ÉXITO — Solo visible cuando termina
+            // Avisa que cargó pero que la UI estuvo bloqueada
+            // --------------------------------------------------
             AnimatedVisibility(visible = estado == "listo") {
                 Box(
                     modifier = Modifier
@@ -145,7 +177,15 @@ fun SinHiloScreen() {
                 }
             }
 
-            // Botón
+            // --------------------------------------------------
+            // BOTÓN DE CARGA
+            // Al presionar:
+            //   1. Cambia estado a "cargando"
+            //   2. Bloquea el hilo principal 3 segundos (while loop)
+            //   3. Carga las noticias en la lista
+            //   4. Cambia estado a "listo"
+            // ❌ Durante esos 3 segundos la app NO responde
+            // --------------------------------------------------
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -154,8 +194,12 @@ fun SinHiloScreen() {
                 Button(
                     onClick = {
                         estado = "cargando"
+
+                        // ❌ SIN HILO: bloquea el hilo principal durante 3 segundos
+                        // El usuario NO puede tocar nada mientras esto ejecuta
                         val inicio = System.currentTimeMillis()
                         while (System.currentTimeMillis() - inicio < 3000) { }
+                        // Después de 3 segundos → asigna las noticias a la lista
                         noticiasCargadas = noticias
                         estado = "listo"
                     },
@@ -173,13 +217,17 @@ fun SinHiloScreen() {
                 }
             }
 
-            // Lista
+            // --------------------------------------------------
+            // LISTA DE NOTICIAS
+            // Se muestra cuando noticiasCargadas no está vacío
+            // Cada item es un NoticiaCard estilo Twitter/Instagram
+            // --------------------------------------------------
             LazyColumn(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(noticiasCargadas) { noticia ->
-                    NoticiaCard(noticia)
+                    NoticiaCard(noticia) // Renderiza cada noticia como card
                 }
                 item { Spacer(modifier = Modifier.height(16.dp)) }
             }
@@ -187,6 +235,14 @@ fun SinHiloScreen() {
     }
 }
 
+// ============================================================
+// COMPONENTE NoticiaCard
+// Muestra una noticia estilo Twitter/Instagram con:
+// - Avatar con inicial del autor
+// - Nombre, handle y hora de publicación
+// - Contenido de la noticia
+// - Acciones: comentarios, likes y compartir
+// ============================================================
 @Composable
 fun NoticiaCard(noticia: Noticia) {
     Surface(
@@ -195,7 +251,10 @@ fun NoticiaCard(noticia: Noticia) {
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
+
+            // Avatar + info del autor
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // Avatar circular con la inicial del autor
                 Box(
                     modifier = Modifier
                         .size(42.dp)
@@ -204,7 +263,7 @@ fun NoticiaCard(noticia: Noticia) {
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = noticia.autor.take(1),
+                        text = noticia.autor.take(1), // Primera letra del nombre
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
@@ -215,29 +274,35 @@ fun NoticiaCard(noticia: Noticia) {
                     Text(noticia.autor, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     Text("${noticia.handle} · ${noticia.hora}", color = Color.Gray, fontSize = 12.sp)
                 }
+                // Ícono de opciones (tres puntos)
                 Icon(Icons.Default.MoreVert, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(18.dp))
             }
 
             Spacer(modifier = Modifier.height(10.dp))
+            // Texto principal de la noticia
             Text(noticia.contenido, color = Color.White, fontSize = 14.sp, lineHeight = 20.sp)
             Spacer(modifier = Modifier.height(12.dp))
             HorizontalDivider(color = Color.White.copy(alpha = 0.07f))
             Spacer(modifier = Modifier.height(10.dp))
 
+            // Fila de acciones: comentarios | likes | compartir
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceAround
             ) {
+                // Comentarios
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.MailOutline, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(noticia.comentarios, color = Color.Gray, fontSize = 12.sp)
                 }
+                // Likes (corazón rojo)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Favorite, contentDescription = null, tint = Rojo, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(noticia.likes, color = Color.Gray, fontSize = 12.sp)
                 }
+                // Compartir
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Share, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
@@ -246,4 +311,4 @@ fun NoticiaCard(noticia: Noticia) {
             }
         }
     }
-}
+}git add .
