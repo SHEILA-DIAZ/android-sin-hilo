@@ -311,4 +311,4 @@ fun NoticiaCard(noticia: Noticia) {
             }
         }
     }
-}git add .
+}
